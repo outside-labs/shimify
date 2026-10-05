@@ -1,7 +1,7 @@
 [project]
 name = "shimify"
 version = "0.1.0"
-description = "Add your description here"
+description = "Auditable Python dependency analysis and portable source bundles"
 readme = "README.md"
 authors = [
     { name = "ellainng", email = "299958882+ellainng@users.noreply.github.com" }
@@ -10,7 +10,11 @@ requires-python = ">=3.14"
 dependencies = []
 
 [project.scripts]
-shimify = "shimify:main"
+shimify = "shimify.cli:main"
+
+[project.urls]
+Repository = "https://github.com/outside-labs/shimify"
+Issues = "https://github.com/outside-labs/shimify/issues"
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13.0"]
