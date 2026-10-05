@@ -18,6 +18,8 @@ Requires Python 3.14 or newer. There are no runtime dependencies.
 uv sync --locked
 uv run shimify --help
 uv run shimify --version
+uv run shimify explain path/to/app.py
+uv run shimify explain path/to/app.py --json --search-path path/to/src
 uv run python -m unittest discover -s tests -v
 uv build
 ```
@@ -28,3 +30,10 @@ and its linked issues track scope, acceptance criteria, and current work.
 
 The project license has not yet been selected. Package publication requires a
 separate decision.
+
+`explain` reads sources without importing the target application or its packages.
+It includes all static imports, even those in conditional branches. JSON output
+contains module paths and hashes, import edges with inclusion reasons, and stable
+diagnostic codes. Exit status is 0 for a supported static graph, 1 for analysis
+diagnostics, and 2 for invalid input. A supported graph is not proof that arbitrary
+runtime reflection or resource use has been discovered.
