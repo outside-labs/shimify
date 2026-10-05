@@ -61,3 +61,34 @@ extensions, namespace packages, wildcard imports, import-path mutations, and
 file-relative behavior are unsupported. Conditional and type-checking imports
 remain included. Sources shadowing standard library module names are rejected
 by bundling because the launcher uses standard library modules itself.
+
+## Real-package example
+
+The acceptance pilot uses the pinned pure-Python `packaging==25.0` wheel. Install
+it into an explicit build-only directory, explain the example, and bundle it:
+
+```sh
+uv pip install --python 3.14 --target build/pilot --no-deps --only-binary :all: --require-hashes -r tests/pilot-requirements.txt
+uv run shimify explain examples/version_info.py --search-path build/pilot
+uv run shimify modules examples/version_info.py --search-path build/pilot --output build/version-info
+python -I -S build/version-info/run.py 1.0rc1 1.0 invalid
+```
+
+This use case includes 3 of the dependency's 16 Python modules: 18,601 of 221,406
+source bytes. The bundle also contains the application script, launcher,
+manifest, raw distribution metadata, and all three upstream license files.
+These counts describe this pinned fixture's module reachability, not arbitrary
+function-level reduction or total artifact size.
+
+Run its differential acceptance test locally with:
+
+```sh
+SHIMIFY_PILOT_PATH=build/pilot uv run python -m unittest discover -s tests -v
+uv build
+uv run python scripts/check_wheel.py
+```
+
+On PowerShell, set `$env:SHIMIFY_PILOT_PATH = "build/pilot"` before running tests.
+Without this explicit fixture path, the real-package test is skipped; synthetic
+tests remain available offline. CI always installs the hashed fixture and runs
+the complete suite and isolated wheel smoke test on Linux, macOS, and Windows.
