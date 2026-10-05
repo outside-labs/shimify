@@ -20,6 +20,8 @@ uv run shimify --help
 uv run shimify --version
 uv run shimify explain path/to/app.py
 uv run shimify explain path/to/app.py --json --search-path path/to/src
+uv run shimify modules path/to/app.py --output path/outside/source/roots
+python -I -S path/outside/source/roots/run.py
 uv run python -m unittest discover -s tests -v
 uv build
 ```
@@ -37,3 +39,25 @@ contains module paths and hashes, import edges with inclusion reasons, and stabl
 diagnostic codes. Exit status is 0 for a supported static graph, 1 for analysis
 diagnostics, and 2 for invalid input. A supported graph is not proof that arbitrary
 runtime reflection or resource use has been discovered.
+
+`modules` emits unchanged reachable sources under `_sources/`, `run.py`,
+`LICENSES/`, and `SHIMIFY-MANIFEST.json`. Run the launcher with `-I -S` to exclude
+environment paths and site packages. Target code is never executed by analysis or
+generation. Output must be a new directory outside all included import roots;
+existing files and overlapping sources are refused. Bundling refusals return 1,
+and invalid inputs or filesystem errors return 2.
+
+Sources in the interpreter's ordinary installed-package directories require
+distribution file records. Sources supplied through `--search-path` are treated
+as application code unless matching distribution records identify their owner.
+The manifest preserves source hashes, import reasons, distribution metadata,
+and available license/notice files. Missing declared third-party license files
+or an installation with no license text block output. Local application notices
+are copied when found in the included roots/package directories. Review the
+original licensing obligations before redistributing an artifact.
+
+Recognized dynamic imports, package resources, runtime metadata, native
+extensions, namespace packages, wildcard imports, import-path mutations, and
+file-relative behavior are unsupported. Conditional and type-checking imports
+remain included. Sources shadowing standard library module names are rejected
+by bundling because the launcher uses standard library modules itself.
