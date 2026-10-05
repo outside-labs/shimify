@@ -7,6 +7,8 @@ import sys
 
 from shimify import __version__
 from shimify.analyzer import analyze
+from shimify.bundler import bundle
+from shimify.provenance import BundleError
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -19,9 +21,21 @@ def main(argv: list[str] | None = None) -> int:
     explain.add_argument("script", type=Path)
     explain.add_argument("--search-path", type=Path, action="append", default=[], help="Additional local source root (repeatable).")
     explain.add_argument("--json", action="store_true", help="Emit a structured import graph.")
+    modules = commands.add_parser("modules", help="Bundle reachable source modules into a new directory.")
+    modules.add_argument("script", type=Path)
+    modules.add_argument("--search-path", type=Path, action="append", default=[], help="Additional local source root (repeatable).")
+    modules.add_argument("--output", type=Path, required=True, help="New directory outside the source roots.")
     args = parser.parse_args(argv)
     try:
         graph = analyze(args.script, search_paths=tuple(args.search_path))
+        if args.command == "modules":
+            manifest = bundle(graph, args.output)
+            print(f"Created {args.output.resolve()} ({len(manifest['sources'])} source modules)")
+            print(f"Run: python -I -S {args.output.resolve() / 'run.py'}")
+            return 0
+    except BundleError as error:
+        print(f"shimify: {error}", file=sys.stderr)
+        return 1
     except (OSError, ValueError) as error:
         print(f"shimify: {error}", file=sys.stderr)
         return 2
