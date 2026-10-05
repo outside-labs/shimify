@@ -119,3 +119,19 @@ class SourceTreeTests(unittest.TestCase):
         self.assertEqual(graph.modules["json.nonexistent_child"].kind, "missing")
         self.assertEqual(graph.modules["sys.nonexistent_child"].kind, "missing")
         self.assertEqual(graph.modules["os.path"].kind, "stdlib")
+
+    def test_stdlib_precedes_ordinary_installed_packages(self):
+        site = self.root / "site"
+        self.write("site/json/__init__.py", "raise RuntimeError('must not be selected')\n")
+        self.write("site/json/fake_child.py", "")
+        graph = analyze(self.write("app.py", "import json\nimport json.fake_child\n"), installed_paths=(site,))
+        self.assertEqual(graph.modules["json"].kind, "stdlib")
+        self.assertEqual(graph.modules["json.fake_child"].kind, "missing")
+
+    def test_namespace_portion_does_not_hide_later_regular_package(self):
+        site = self.root / "site"
+        self.write("library/ignored.py", "")
+        self.write("site/library/__init__.py", "value = 1\n")
+        graph = analyze(self.write("app.py", "import library\n"), installed_paths=(site,))
+        self.assertTrue(graph.supported, graph.diagnostics)
+        self.assertEqual(graph.modules["library"].path, (site / "library/__init__.py").resolve())

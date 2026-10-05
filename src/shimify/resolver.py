@@ -36,25 +36,9 @@ class Resolver:
         return module
 
     def _filesystem(self, name: str, parts: list[str]) -> Module:
-        for root in self.paths:
-            first = self._at(root / parts[0], parts[0], root)
-            if first is None:
-                continue
-            if len(parts) == 1:
-                return first
-            if first.kind != "source" or not first.is_package:
-                return Module(name, first.kind if first.kind == "namespace" else "missing", root=root)
-            current = first
-            for index in range(1, len(parts)):
-                if not current.is_package or current.path is None:
-                    return Module(name, "missing", root=root)
-                candidate = self._at(current.path.parent / parts[index], ".".join(parts[: index + 1]), root)
-                if candidate is None:
-                    return Module(name, "missing", root=root)
-                current = candidate
-                if current.kind != "source":
-                    return Module(name, current.kind, current.path, root, external=current.external)
-            return current
+        local, namespace = self._search(name, parts, self.local_paths)
+        if local is not None:
+            return local
         if parts[0] in sys.stdlib_module_names:
             if len(parts) == 1 or name == "os.path":
                 return Module(name, "stdlib")
@@ -63,7 +47,38 @@ class Resolver:
                 base = root.joinpath(*parts)
                 if self._at(base, name, root) is not None:
                     return Module(name, "stdlib")
-        return Module(name, "missing")
+            # A winning stdlib parent cannot get a child from a later installed
+            # package with the same top-level name.
+            return Module(name, "missing")
+        installed, installed_namespace = self._search(name, parts, self.installed_paths)
+        return installed or namespace or installed_namespace or Module(name, "missing")
+
+    def _search(self, name: str, parts: list[str], roots: tuple[Path, ...]) -> tuple[Module | None, Module | None]:
+        namespace = None
+        for root in roots:
+            first = self._at(root / parts[0], parts[0], root)
+            if first is None:
+                continue
+            if first.kind == "namespace":
+                # Namespace portions do not outrank a later ordinary package.
+                namespace = Module(name, "namespace", first.path, root, True, first.external)
+                continue
+            if len(parts) == 1:
+                return first, namespace
+            if first.kind != "source" or not first.is_package:
+                return Module(name, "missing", root=root), namespace
+            current = first
+            for index in range(1, len(parts)):
+                if not current.is_package or current.path is None:
+                    return Module(name, "missing", root=root), namespace
+                candidate = self._at(current.path.parent / parts[index], ".".join(parts[: index + 1]), root)
+                if candidate is None:
+                    return Module(name, "missing", root=root), namespace
+                current = candidate
+                if current.kind != "source":
+                    return Module(name, current.kind, current.path, root, external=current.external), namespace
+            return current, namespace
+        return None, namespace
 
     def _at(self, base: Path, name: str, root: Path) -> Module | None:
         external = root in self.installed_paths
