@@ -1,6 +1,3 @@
-# shimify
-
-dependency extraction/bundling experiment
 # Shimify
 
 Shimify is a source-level Python dependency reducer. It aims to explain what an
@@ -13,6 +10,16 @@ function-level slicing, single-file rewriting, native extensions, and automatic
 resource discovery are later work with explicit acceptance gates.
 
 Requires Python 3.14 or newer. There are no runtime dependencies.
+
+The initial `0.1.0` release is experimental and uses the MIT license:
+
+```sh
+python -m pip install shimify==0.1.0
+shimify --help
+```
+
+See [release notes](docs/release-0.1.0.md) for supported behavior and limitations.
+For development and the acceptance pilot, use a checkout:
 
 ```sh
 uv sync --locked
@@ -30,8 +37,8 @@ See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for architecture and
 milestones. The [GitHub Project](https://github.com/orgs/outside-labs/projects/5)
 and its linked issues track scope, acceptance criteria, and current work.
 
-The project license has not yet been selected. Package publication requires a
-separate decision.
+Published GitHub releases use tags such as `v0.1.0`; the tag must match package
+metadata before the `pypi` environment can upload the tested distributions.
 
 `explain` reads sources without importing the target application or its packages.
 It includes all static imports, even those in conditional branches. JSON output
