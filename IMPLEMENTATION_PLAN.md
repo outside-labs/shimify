@@ -77,7 +77,8 @@ Execute INIT-01 through QA-01 sequentially, using one branch/PR per task and
 continuing after green CI and merge. VND-01 and SLC-01 require the next
 intended-use contract; they are product decision gates, not blanket permission
 to remove arbitrary code or copy all package data. Package publication is a
-separate boundary, including the unresolved project license.
+separate boundary. The project source uses MIT; the initial 0.1.0 publication
+uses the release policy documented in `docs/release-0.1.0.md`.
 
 ## Verification
 

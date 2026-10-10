@@ -7,6 +7,15 @@ authors = [
     { name = "ellainng", email = "299958882+ellainng@users.noreply.github.com" }
 ]
 requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Build Tools",
+]
 dependencies = []
 
 [project.scripts]
