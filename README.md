@@ -11,14 +11,14 @@ symbol rewriting, native slicing and automatic resources remain later work.
 
 Requires Python 3.14 or newer. There are no runtime dependencies.
 
-The `0.2.0` release is experimental and uses the MIT license:
+The `0.2.1` release is experimental and uses the MIT license:
 
 ```sh
-python -m pip install shimify==0.2.0
+python -m pip install shimify==0.2.1
 shimify --help
 ```
 
-See [release notes](docs/release-0.2.0.md) for supported behavior and limitations.
+See [release notes](docs/release-0.2.1.md) for supported behavior and limitations.
 For development and the acceptance pilot, use a checkout:
 
 ```sh
