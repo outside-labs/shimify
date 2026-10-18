@@ -72,6 +72,8 @@ def _validate(graph: SymbolGraph):
         else:
             refuse("Executable module initialization and classes are unsupported.", node)
     for node in ast.walk(graph.tree):
+        if isinstance(node, ast.ClassDef):
+            refuse("Class definitions require a separate extraction contract.", node)
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             if isinstance(node, ast.ImportFrom):
                 if node.level or any(alias.name == "*" for alias in node.names):
@@ -103,6 +105,8 @@ def extract(graph: SymbolGraph, output: str | Path) -> dict:
     modules = analyze(graph.path)
     if not modules.supported:
         raise BundleError("SHIM410: Module analysis has blocking diagnostics.")
+    if any(name != "__main__" and module.kind != "stdlib" for name, module in modules.modules.items()):
+        raise BundleError("SHIM410: Imports must resolve to the standard library; local shadowing is unsupported.")
     entry = modules.modules["__main__"]
     if entry.source != graph.source:
         raise BundleError("SHIM306: Source changed since symbol analysis.")
