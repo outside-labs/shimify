@@ -4,21 +4,21 @@ Shimify is a source-level Python dependency reducer. It aims to explain what an
 application imports and produce an auditable source directory containing the
 implementation needed by its supported import graph.
 
-The first milestone is conservative static module analysis and directory
-bundling. It preserves ordinary Python package layouts and source bytes. Exact
-function-level slicing, single-file rewriting, native extensions, and automatic
-resource discovery are later work with explicit acceptance gates.
+Version 0.2 adds lexical symbol reports, conservative same-module callable
+extraction, and runtime requirements reports. The original module bundler
+preserves ordinary Python package layouts and source bytes. Cross-module
+symbol rewriting, native slicing and automatic resources remain later work.
 
 Requires Python 3.14 or newer. There are no runtime dependencies.
 
-The initial `0.1.0` release is experimental and uses the MIT license:
+The `0.2.0` release is experimental and uses the MIT license:
 
 ```sh
-python -m pip install shimify==0.1.0
+python -m pip install shimify==0.2.0
 shimify --help
 ```
 
-See [release notes](docs/release-0.1.0.md) for supported behavior and limitations.
+See [release notes](docs/release-0.2.0.md) for supported behavior and limitations.
 For development and the acceptance pilot, use a checkout:
 
 ```sh
@@ -28,12 +28,15 @@ uv run shimify --version
 uv run shimify explain path/to/app.py
 uv run shimify explain path/to/app.py --json --search-path path/to/src
 uv run shimify modules path/to/app.py --output path/outside/source/roots
+uv run shimify symbols examples/checksums.py:checksum --json
+uv run shimify extract examples/checksums.py:checksum --output build/checksum
+uv run shimify runtime examples/version_info.py --json
 python -I -S path/outside/source/roots/run.py
 uv run python -m unittest discover -s tests -v
 uv build
 ```
 
-See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for architecture and
+See [the 0.2 implementation plan](IMPLEMENTATION_PLAN02.md) for architecture and
 milestones. The [GitHub Project](https://github.com/orgs/outside-labs/projects/5)
 and its linked issues track scope, acceptance criteria, and current work.
 
