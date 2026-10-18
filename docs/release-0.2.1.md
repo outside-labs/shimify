@@ -1,5 +1,8 @@
 # Shimify 0.2.1
 
+See the [0.2.0 release contract](release-0.2.0.md) for command usage, supported
+extraction behavior, and runtime-report limitations.
+
 Tightens the conservative callable-extraction boundary. An import with a
 standard-library spelling must resolve to the actual standard library. Local
 source files such as `math.py` or `hashlib.py` are refused during extraction so
