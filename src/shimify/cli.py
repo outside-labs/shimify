@@ -10,6 +10,7 @@ from shimify.analyzer import analyze
 from shimify.bundler import bundle
 from shimify.extractor import extract
 from shimify.provenance import BundleError
+from shimify.runtime import runtime_requirements
 from shimify.symbols import analyze_symbols, parse_target
 
 
@@ -33,6 +34,10 @@ def main(argv: list[str] | None = None) -> int:
     extraction = commands.add_parser("extract", help="Extract a supported function and its same-module helpers.")
     extraction.add_argument("target", help="FILE.py:top_level_name")
     extraction.add_argument("--output", type=Path, required=True, help="New directory outside the source root.")
+    runtime = commands.add_parser("runtime", help="Report static runtime requirements and unestablished closure.")
+    runtime.add_argument("script", type=Path)
+    runtime.add_argument("--search-path", type=Path, action="append", default=[])
+    runtime.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
         if args.command == "extract":
@@ -53,6 +58,17 @@ def main(argv: list[str] | None = None) -> int:
                     print("Unresolved globals: " + ", ".join(report["unresolved_globals"]))
             return 0 if report["supported"] else 1
         graph = analyze(args.script, search_paths=tuple(args.search_path))
+        if args.command == "runtime":
+            report = runtime_requirements(graph)
+            if args.json:
+                print(json.dumps(report, indent=2, sort_keys=True))
+            else:
+                print(f"Source bytes: {report['source_size_bytes']}")
+                print("Direct standard library: " + ", ".join(report["direct_stdlib_modules"]))
+                print("Runtime closure: incomplete; unsuitable for runtime file deletion.")
+                for item in graph.diagnostics:
+                    print(f"{item.code}: {item.module}: {item.message}")
+            return 0 if graph.supported else 1
         if args.command == "modules":
             manifest = bundle(graph, args.output)
             print(f"Created {args.output.resolve()} ({len(manifest['sources'])} source modules)")
