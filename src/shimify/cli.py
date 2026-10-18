@@ -8,6 +8,7 @@ import sys
 from shimify import __version__
 from shimify.analyzer import analyze
 from shimify.bundler import bundle
+from shimify.extractor import extract
 from shimify.provenance import BundleError
 from shimify.symbols import analyze_symbols, parse_target
 
@@ -29,8 +30,15 @@ def main(argv: list[str] | None = None) -> int:
     symbols = commands.add_parser("symbols", help="Report a top-level symbol's lexical dependency closure.")
     symbols.add_argument("target", help="FILE.py:top_level_name")
     symbols.add_argument("--json", action="store_true", help="Emit a structured symbol graph.")
+    extraction = commands.add_parser("extract", help="Extract a supported function and its same-module helpers.")
+    extraction.add_argument("target", help="FILE.py:top_level_name")
+    extraction.add_argument("--output", type=Path, required=True, help="New directory outside the source root.")
     args = parser.parse_args(argv)
     try:
+        if args.command == "extract":
+            manifest = extract(analyze_symbols(*parse_target(args.target)), args.output)
+            print(f"Created {args.output.resolve()} ({manifest['size']['extracted_source_bytes']} source bytes)")
+            return 0
         if args.command == "symbols":
             report = analyze_symbols(*parse_target(args.target)).to_dict()
             if args.json:
