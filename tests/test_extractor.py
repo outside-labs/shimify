@@ -73,6 +73,7 @@ class ExtractionTests(unittest.TestCase):
         examples = [
             "@print\ndef selected():\n    return 1\n",
             "class selected:\n    pass\n",
+            "def selected():\n    class Local:\n        pass\n    return Local()\n",
             "VALUE = []\ndef selected():\n    return VALUE\n",
             "print('initialization')\ndef selected():\n    return 1\n",
             "def selected(value=list()):\n    return value\n",
@@ -92,6 +93,13 @@ class ExtractionTests(unittest.TestCase):
             with self.subTest(source=text), self.assertRaises(BundleError):
                 extract(self.graph(text), self.output)
             self.assertFalse(self.output.exists())
+
+    def test_local_stdlib_shadow_is_not_mistaken_for_a_portable_import(self):
+        (self.source / "json.py").write_text("def loads(value):\n    return 123\n")
+        graph = self.graph("import json\ndef selected(value):\n    return json.loads(value)\n")
+        with self.assertRaisesRegex(BundleError, "local shadowing"):
+            extract(graph, self.output)
+        self.assertFalse(self.output.exists())
 
     def test_source_changes_overlap_existing_output_and_write_failure(self):
         graph = self.graph("def selected():\n    return 1\n")
