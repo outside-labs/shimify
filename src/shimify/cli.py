@@ -9,6 +9,7 @@ from shimify import __version__
 from shimify.analyzer import analyze
 from shimify.bundler import bundle
 from shimify.provenance import BundleError
+from shimify.symbols import analyze_symbols, parse_target
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -25,8 +26,24 @@ def main(argv: list[str] | None = None) -> int:
     modules.add_argument("script", type=Path)
     modules.add_argument("--search-path", type=Path, action="append", default=[], help="Additional local source root (repeatable).")
     modules.add_argument("--output", type=Path, required=True, help="New directory outside the source roots.")
+    symbols = commands.add_parser("symbols", help="Report a top-level symbol's lexical dependency closure.")
+    symbols.add_argument("target", help="FILE.py:top_level_name")
+    symbols.add_argument("--json", action="store_true", help="Emit a structured symbol graph.")
     args = parser.parse_args(argv)
     try:
+        if args.command == "symbols":
+            report = analyze_symbols(*parse_target(args.target)).to_dict()
+            if args.json:
+                print(json.dumps(report, indent=2, sort_keys=True))
+            else:
+                print(f"Symbol: {report['symbol']}")
+                print("Retained: " + ", ".join(report["retained"]))
+                print("Omitted: " + ", ".join(report["omitted"]))
+                for item in report["diagnostics"]:
+                    print(f"{item['code']}: {item['message']}")
+                if report["unresolved_globals"]:
+                    print("Unresolved globals: " + ", ".join(report["unresolved_globals"]))
+            return 0 if report["supported"] else 1
         graph = analyze(args.script, search_paths=tuple(args.search_path))
         if args.command == "modules":
             manifest = bundle(graph, args.output)
