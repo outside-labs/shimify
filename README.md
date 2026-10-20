@@ -103,3 +103,7 @@ On PowerShell, set `$env:SHIMIFY_PILOT_PATH = "build/pilot"` before running test
 Without this explicit fixture path, the real-package test is skipped; synthetic
 tests remain available offline. CI always installs the hashed fixture and runs
 the complete suite and isolated wheel smoke test on Linux, macOS, and Windows.
+
+Development [source measurements](docs/source-measurements.md) compare the
+text_metrics callable and pinned packaging pilot with complete artifact overhead,
+cold/warm execution and separately measured memory.

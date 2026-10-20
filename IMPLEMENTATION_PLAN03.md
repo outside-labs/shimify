@@ -145,3 +145,11 @@ The development [explicit resource profile](docs/explicit-resources.md) adds
 allowlisted UTF-8 package data and source-owned distribution version metadata
 to unchanged-module bundles under a separate schema-2 manifest. Callable
 extraction keeps its existing resource boundary.
+
+## Source measurement implementation
+
+PERF-01 adds [reproducible source/artifact measurements](docs/source-measurements.md)
+for text_metrics and the hash-pinned packaging 25.0 pilot. Reports separate
+source, notices, complete payload, canonical tar and gzip bytes, with raw isolated
+cold/warm timing and separate tracemalloc/RSS observations. Original/reduced
+behavior must agree; no fixed size, speed or memory improvement is required.
