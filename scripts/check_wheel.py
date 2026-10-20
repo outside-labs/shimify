@@ -35,7 +35,7 @@ with tarfile.open(sdists[0]) as archive:
     assert {item.name for item in archive.getmembers() if item.isfile()} == expected_source, "Unexpected source distribution files"
 
 subprocess.run(
-    ["uv", "run", "--isolated", "--no-project", "--with", str(wheels[0]), "python", "-I", "-m", "shimify", "--help"],
+    ["uv", "run", "--python", sys.executable, "--isolated", "--no-project", "--with", str(wheels[0]), "python", "-I", "-m", "shimify", "--help"],
     check=True,
 )
 
@@ -45,7 +45,7 @@ with tempfile.TemporaryDirectory() as temporary:
     source.mkdir()
     (source / "utility.py").write_text("import math\ndef selected(x):\n    return math.sqrt(x)\ndef unused():\n    return 0\n")
     output = root / "extracted"
-    subprocess.run(["uv", "run", "--isolated", "--no-project", "--with", str(wheels[0].resolve()), "python", "-I", "-m", "shimify", "extract", str(source / "utility.py") + ":selected", "--output", str(output)], check=True, cwd=root)
+    subprocess.run(["uv", "run", "--python", sys.executable, "--isolated", "--no-project", "--with", str(wheels[0].resolve()), "python", "-I", "-m", "shimify", "extract", str(source / "utility.py") + ":selected", "--output", str(output)], check=True, cwd=root)
     manifest = json.loads((output / "SHIMIFY-EXTRACT.json").read_bytes())
     assert manifest["omitted"] == ["unused"]
     assert manifest["files"][0]["sha256"] == hashlib.sha256((output / "extracted.py").read_bytes()).hexdigest()
