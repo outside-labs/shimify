@@ -56,7 +56,7 @@ def _same_source(module):
 
 def _valid_runtime(value):
     return (isinstance(value, dict) and value.get('observer') == 'shimify-runtime-evidence/1'
-            and value.get('status') in {'completed', 'failed'} and isinstance(value.get('python'), dict)
+            and isinstance(value.get('status'), str) and value.get('status') in {'completed', 'failed'} and isinstance(value.get('python'), dict)
             and isinstance(value.get('import_requests'), list) and isinstance(value.get('new_module_names'), list)
             and type(value.get('observation_limit_reached')) is bool)
 
@@ -75,6 +75,8 @@ def trace(graph: ModuleGraph, *, allow_execution: bool = False, arguments: tuple
     if '__main__' not in graph.modules:
         raise ValueError('Runtime evidence requires a script graph.')
     sources = [module for module in graph.modules.values() if module.kind == 'source']
+    if any(module.name != '__main__' and module.name.split('.')[0] in sys.stdlib_module_names for module in sources):
+        raise BundleError('SHIM430: Runtime observation does not support source modules shadowing the standard library.')
     if not all(_same_source(module) for module in sources):
         raise BundleError('SHIM306: Source changed since static analysis.')
     runner = Path(__file__).with_name('_trace_runner.py')

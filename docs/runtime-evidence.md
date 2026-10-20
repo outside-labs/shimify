@@ -21,6 +21,8 @@ unobserved. Requests include workload/harness imports and are not proof that
 every requested import completed or is necessary. Each report retains static
 diagnostics, source hashes and the actual target implementation/version/platform.
 Dynamic-loader diagnostics remain even when a traced workload succeeds.
+Local source modules shadowing the stdlib are refused, since observer startup
+preloads stdlib modules. Cache/observer introspection is outside this profile.
 
 The default timeout is five seconds (allowed range 0.05–60). Each output stream
 captures and hashes at most 64 KiB (configurable 1024–1,048,576 bytes); raw stdout,
