@@ -26,7 +26,7 @@ locale behavior.
 | Profile | Preserved behavior | Boundaries |
 | --- | --- | --- |
 | Unchanged modules, delivered | Reachable source bytes, normal module/package layout, imports and initializers. | Current dynamic/native/resource/metadata refusals. |
-| Cross-module callable, next LINK-01 | Selected callable result/exception, ordinary import and binding identity, declared initialization order, notices and hashes. | Unsupported initialization, reflective access, dynamic exports, arbitrary class dispatch and undeclared resources. |
+| Cross-module callable, development LINK-01 | Selected callable result/exception, ordinary import and binding identity, declared initialization order, notices and hashes. | Unsupported initialization, reflective access, dynamic exports, arbitrary class dispatch and undeclared resources. |
 | Purpose-specific distribution, optional ART-01 | Explicit selected API and consumer installation contract. | No automatic replacement for an upstream package's full public API. |
 
 The fixture has only imports, immutable constants and function definitions at
@@ -47,10 +47,10 @@ must occur before output publication. Runtime traces cannot prove removability.
 
 ## Evidence and downstream use
 
-SRC-01 verifies the original application and current unchanged-module bundle in
-clean CPython processes, including Unicode and invalid input. It does not claim
-cross-module extraction is implemented. LINK-01 must compare the same original
-against its reduced artifact and inspect retained/omitted bindings and notices.
+SRC-01 verifies the original application and unchanged-module bundle in clean
+CPython processes, including Unicode and invalid input. The development
+[cross-module linker](cross-module-linking.md) now compares the same original
+against its reduced artifact and checks retained/omitted bindings and notices.
 
 Source, complete artifact, runtime, compressed transfer, startup and memory are
 separate measurements. Standard-library/runtime trimming belongs to a verified

@@ -21,8 +21,23 @@ def analyze(
         raise ValueError(f"Entry point must be an existing .py script: {entry}")
     local = (entry.parent, *search_paths)
     resolver = Resolver(local, environment_paths() if installed_paths is None else installed_paths)
+    return _analyze(entry, resolver, Module("__main__", "source", entry, entry.parent))
+
+
+def analyze_module(name: str, *, search_paths: tuple[Path, ...], installed_paths: tuple[Path, ...] | None = None) -> ModuleGraph:
+    """Analyze an ordinary library module with its real package identity."""
+    if name == "__main__":
+        raise ValueError("__main__ is reserved for script analysis.")
+    resolver = Resolver(search_paths, environment_paths() if installed_paths is None else installed_paths)
+    module = resolver.resolve(name)
+    if module.kind != "source" or module.path is None:
+        raise ValueError("Expected a source module in the explicit import roots.")
+    return _analyze(module.path, resolver, module)
+
+
+def _analyze(entry: Path, resolver: Resolver, initial: Module) -> ModuleGraph:
     graph = ModuleGraph(entry, resolver.paths)
-    pending = [Module("__main__", "source", entry, entry.parent)]
+    pending = [initial]
 
     def include(name: str, importer: str, line: int, reason: str):
         resolved = resolver.resolve(name)
@@ -42,6 +57,9 @@ def analyze(
                     graph.modules[parent] = parent_module
                     pending.append(parent_module)
 
+    if initial.name != "__main__":
+        for index in range(1, len(initial.name.split("."))):
+            include(".".join(initial.name.split(".")[:index]), initial.name, 0, "entry package initializer")
     scanned: set[str] = set()
     while pending:
         module = pending.pop()
