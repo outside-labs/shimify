@@ -14,6 +14,7 @@ from shimify.provenance import BundleError
 from shimify.runtime import runtime_requirements
 from shimify.resources import ResourcePolicy, TextResource
 from shimify.symbols import analyze_symbols, parse_target
+from shimify.tracing import trace
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,6 +50,13 @@ def main(argv: list[str] | None = None) -> int:
     runtime.add_argument("script", type=Path)
     runtime.add_argument("--search-path", type=Path, action="append", default=[])
     runtime.add_argument("--json", action="store_true")
+    tracing = commands.add_parser("trace", help="Run an explicitly opted-in script and collect bounded import evidence.")
+    tracing.add_argument("script", type=Path)
+    tracing.add_argument("--allow-execution", action="store_true", help="Required: run the selected application.")
+    tracing.add_argument("--search-path", type=Path, action="append", default=[])
+    tracing.add_argument("--argument", action="append", default=[], help="Application argument (repeatable).")
+    tracing.add_argument("--timeout", type=float, default=5)
+    tracing.add_argument("--max-output-bytes", type=int, default=65536)
     args = parser.parse_args(argv)
     try:
         if args.command == "link":
@@ -82,6 +90,11 @@ def main(argv: list[str] | None = None) -> int:
                 declared.append(TextResource(package, path))
             policy = ResourcePolicy(tuple(declared), tuple(args.distribution_version))
         graph = analyze(args.script, search_paths=tuple(args.search_path), resource_policy=policy)
+        if args.command == "trace":
+            report = trace(graph, allow_execution=args.allow_execution, arguments=tuple(args.argument),
+                           timeout=args.timeout, max_output_bytes=args.max_output_bytes)
+            print(json.dumps(report, indent=2, sort_keys=True))
+            return 0 if report['status'] == 'completed' and report['evidence_complete'] else 1
         if args.command == "runtime":
             report = runtime_requirements(graph)
             if args.json:
