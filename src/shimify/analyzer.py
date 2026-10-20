@@ -8,6 +8,7 @@ import tokenize
 
 from shimify.models import Diagnostic, ImportEdge, Module, ModuleGraph
 from shimify.resolver import Resolver, environment_paths
+from shimify.resources import ResourcePolicy
 
 
 def analyze(
@@ -15,13 +16,16 @@ def analyze(
     *,
     search_paths: tuple[Path, ...] = (),
     installed_paths: tuple[Path, ...] | None = None,
+    resource_policy: ResourcePolicy | None = None,
 ) -> ModuleGraph:
     entry = Path(entrypoint).resolve()
+    if resource_policy is not None and not isinstance(resource_policy, ResourcePolicy):
+        raise TypeError('resource_policy must be ResourcePolicy or None')
     if not entry.is_file() or entry.suffix != ".py":
         raise ValueError(f"Entry point must be an existing .py script: {entry}")
     local = (entry.parent, *search_paths)
     resolver = Resolver(local, environment_paths() if installed_paths is None else installed_paths)
-    return _analyze(entry, resolver, Module("__main__", "source", entry, entry.parent))
+    return _analyze(entry, resolver, Module("__main__", "source", entry, entry.parent), resource_policy)
 
 
 def analyze_module(name: str, *, search_paths: tuple[Path, ...], installed_paths: tuple[Path, ...] | None = None) -> ModuleGraph:
@@ -35,8 +39,8 @@ def analyze_module(name: str, *, search_paths: tuple[Path, ...], installed_paths
     return _analyze(module.path, resolver, module)
 
 
-def _analyze(entry: Path, resolver: Resolver, initial: Module) -> ModuleGraph:
-    graph = ModuleGraph(entry, resolver.paths)
+def _analyze(entry: Path, resolver: Resolver, initial: Module, resource_policy=None) -> ModuleGraph:
+    graph = ModuleGraph(entry, resolver.paths, resource_policy=resource_policy)
     pending = [initial]
 
     def include(name: str, importer: str, line: int, reason: str):
@@ -60,7 +64,11 @@ def _analyze(entry: Path, resolver: Resolver, initial: Module) -> ModuleGraph:
     if initial.name != "__main__":
         for index in range(1, len(initial.name.split("."))):
             include(".".join(initial.name.split(".")[:index]), initial.name, 0, "entry package initializer")
+    if resource_policy is not None:
+        for resource in resource_policy.resources:
+            include(resource.package, initial.name, 0, "declared resource package")
     scanned: set[str] = set()
+    trees = {}
     while pending:
         module = pending.pop()
         if module.name in scanned:
@@ -88,7 +96,8 @@ def _analyze(entry: Path, resolver: Resolver, initial: Module) -> ModuleGraph:
             graph.diagnostics.append(Diagnostic("SHIM102", str(error), module.name, getattr(error, "lineno", 0) or 0))
             continue
         graph.modules[module.name] = replace(module, source=source)
-        graph.diagnostics.extend(_boundaries(tree, module.name))
+        trees[module.name] = tree
+        graph.diagnostics.extend(_boundaries(tree, module.name, resource_policy))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
@@ -110,6 +119,8 @@ def _analyze(entry: Path, resolver: Resolver, initial: Module) -> ModuleGraph:
                         candidate = base + "." + alias.name
                         if resolver.resolve(candidate).kind != "missing":
                             include(candidate, module.name, node.lineno, "possible imported submodule")
+    if resource_policy is not None:
+        graph.diagnostics.extend(resource_policy.export_boundaries(graph, trees, _absolute_from, _qualified))
     graph.edges = sorted(set(graph.edges))
     graph.diagnostics = sorted(set(graph.diagnostics), key=lambda d: (d.module, d.line, d.code, d.message))
     return graph
@@ -137,7 +148,7 @@ def _qualified(node: ast.AST, aliases: dict[str, str]) -> str:
     return ""
 
 
-def _boundaries(tree: ast.Module, module: str) -> list[Diagnostic]:
+def _boundaries(tree: ast.Module, module: str, resource_policy=None) -> list[Diagnostic]:
     aliases: dict[str, str] = {}
     nodes = list(ast.walk(tree))
     for node in nodes:
@@ -147,16 +158,18 @@ def _boundaries(tree: ast.Module, module: str) -> list[Diagnostic]:
         elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
             for alias in node.names:
                 aliases[alias.asname or alias.name] = node.module + "." + alias.name
-    diagnostics = []
+    authorized, diagnostics = resource_policy.authorize(tree, module, aliases, _qualified) if resource_policy else (set(), [])
     for node in nodes:
         if isinstance(node, ast.Call):
             name = _qualified(node.func, aliases)
             if name in {"__import__", "builtins.__import__", "importlib.import_module", "importlib.util.find_spec", "importlib.util.spec_from_file_location", "importlib.util.module_from_spec", "runpy.run_path", "runpy.run_module", "exec", "builtins.exec", "eval", "builtins.eval"}:
                 diagnostics.append(Diagnostic("SHIM111", f"Dynamic loading/execution via {name} is unsupported.", module, node.lineno))
             elif name.startswith(("importlib.resources.", "pkgutil.get_data", "pkg_resources.resource")):
-                diagnostics.append(Diagnostic("SHIM113", f"Package resource access via {name} needs an explicit resource policy.", module, node.lineno))
+                if id(node) not in authorized:
+                    diagnostics.append(Diagnostic("SHIM113", f"Package resource access via {name} needs an explicit resource policy.", module, node.lineno))
             elif name.startswith(("importlib.metadata.", "pkg_resources.", "pkgutil.iter_modules", "pkgutil.walk_packages")):
-                diagnostics.append(Diagnostic("SHIM112", f"Runtime metadata/plugin discovery via {name} is unsupported.", module, node.lineno))
+                if id(node) not in authorized:
+                    diagnostics.append(Diagnostic("SHIM112", f"Runtime metadata/plugin discovery via {name} is unsupported.", module, node.lineno))
         if isinstance(node, ast.Name) and node.id == "__file__":
             diagnostics.append(Diagnostic("SHIM113", "File-relative behavior requires an explicit resource policy.", module, node.lineno))
         if isinstance(node, ast.FunctionDef) and node.name == "__getattr__":

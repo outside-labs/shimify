@@ -12,6 +12,7 @@ from shimify.extractor import extract
 from shimify.linker import link
 from shimify.provenance import BundleError
 from shimify.runtime import runtime_requirements
+from shimify.resources import ResourcePolicy, TextResource
 from shimify.symbols import analyze_symbols, parse_target
 from shimify.tracing import trace
 
@@ -30,6 +31,12 @@ def main(argv: list[str] | None = None) -> int:
     modules.add_argument("script", type=Path)
     modules.add_argument("--search-path", type=Path, action="append", default=[], help="Additional local source root (repeatable).")
     modules.add_argument("--output", type=Path, required=True, help="New directory outside the source roots.")
+    resources = commands.add_parser('resources', help='Bundle modules with explicitly declared text resources/version queries.')
+    resources.add_argument('script', type=Path)
+    resources.add_argument('--search-path', type=Path, action='append', default=[])
+    resources.add_argument('--resource', action='append', default=[], help='PACKAGE:relative.txt (repeatable).')
+    resources.add_argument('--distribution-version', action='append', default=[], help='Source-owning distribution name (repeatable).')
+    resources.add_argument('--output', type=Path, required=True)
     symbols = commands.add_parser("symbols", help="Report a top-level symbol's lexical dependency closure.")
     symbols.add_argument("target", help="FILE.py:top_level_name")
     symbols.add_argument("--json", action="store_true", help="Emit a structured symbol graph.")
@@ -73,7 +80,16 @@ def main(argv: list[str] | None = None) -> int:
                 if report["unresolved_globals"]:
                     print("Unresolved globals: " + ", ".join(report["unresolved_globals"]))
             return 0 if report["supported"] else 1
-        graph = analyze(args.script, search_paths=tuple(args.search_path))
+        policy = None
+        if args.command == 'resources':
+            declared = []
+            for value in args.resource:
+                package, separator, path = value.partition(':')
+                if not separator:
+                    raise ValueError('Resources use PACKAGE:relative.txt declarations.')
+                declared.append(TextResource(package, path))
+            policy = ResourcePolicy(tuple(declared), tuple(args.distribution_version))
+        graph = analyze(args.script, search_paths=tuple(args.search_path), resource_policy=policy)
         if args.command == "trace":
             report = trace(graph, allow_execution=args.allow_execution, arguments=tuple(args.argument),
                            timeout=args.timeout, max_output_bytes=args.max_output_bytes)
@@ -90,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
                 for item in graph.diagnostics:
                     print(f"{item.code}: {item.module}: {item.message}")
             return 0 if graph.supported else 1
-        if args.command == "modules":
+        if args.command in {"modules", "resources"}:
             manifest = bundle(graph, args.output)
             print(f"Created {args.output.resolve()} ({len(manifest['sources'])} source modules)")
             print(f"Run: python -I -S {args.output.resolve() / 'run.py'}")
