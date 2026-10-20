@@ -1,5 +1,9 @@
 # Shimify 0.2 implementation plan
 
+Forward roadmap adopted 2026-10-20: [source reduction, browser compiler and
+independent interpreter program](IMPLEMENTATION_PLAN03.md). This document
+retains its historical release contract.
+
 ## Mission and boundary
 
 Transform a supported Python program or callable into an auditable, smaller
