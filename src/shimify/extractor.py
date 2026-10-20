@@ -39,7 +39,63 @@ def _immutable(node: ast.AST | None) -> bool:
     return immutable(value)
 
 
-def _validate(graph: SymbolGraph, *, linked: bool = False):
+def _validate_class(graph, node, refuse):
+    """Validate a whole unit before permitting its definition-time effects."""
+    if node.decorator_list or node.keywords or node.type_params:
+        refuse("Class decorators, metaclasses and generic classes are deferred.", node)
+    if len(node.bases) > 1 or (node.bases and not (isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object' and 'object' not in graph.bindings)):
+        refuse("Custom class inheritance is deferred.", node)
+    names = set()
+    for child in node.body:
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            names.add(child.name)
+        targets = child.targets if isinstance(child, ast.Assign) else [child.target] if isinstance(child, ast.AnnAssign) else []
+        names.update(target.id for target in targets if isinstance(target, ast.Name))
+    builtin_types = {'bool', 'int', 'float', 'str', 'bytes', 'complex', 'tuple', 'list', 'dict', 'set', 'object', 'type'}
+
+    def annotation(value):
+        if value is None:
+            return
+        if isinstance(value, ast.Constant) and (value.value is None or isinstance(value.value, str)):
+            return
+        if isinstance(value, ast.Name) and value.id in builtin_types and value.id not in graph.bindings and value.id not in names:
+            return
+        refuse("Class annotations require unshadowed builtin types, None or literal strings.", value)
+
+    for index, child in enumerate(node.body):
+        if index == 0 and isinstance(child, ast.Expr) and isinstance(child.value, ast.Constant) and isinstance(child.value.value, str):
+            continue
+        if isinstance(child, ast.Pass):
+            continue
+        if isinstance(child, ast.FunctionDef):
+            if child.name.startswith('__') and child.name != '__init__':
+                refuse("Custom special methods and class hooks are deferred.", child)
+            if len(child.decorator_list) > 1 or any(not isinstance(decorator, ast.Name) or
+                    decorator.id not in {'property', 'staticmethod', 'classmethod'} or
+                    decorator.id in graph.bindings or decorator.id in names for decorator in child.decorator_list):
+                refuse("Only unshadowed builtin property/staticmethod/classmethod decorators are adopted.", child)
+            if child.name == '__init__' and child.decorator_list:
+                refuse("The constructor must be an ordinary method.", child)
+            annotation(child.returns)
+            for argument in [*child.args.posonlyargs, *child.args.args, *child.args.kwonlyargs,
+                             *([child.args.vararg] if child.args.vararg else []), *([child.args.kwarg] if child.args.kwarg else [])]:
+                annotation(argument.annotation)
+            continue
+        if isinstance(child, (ast.Assign, ast.AnnAssign)):
+            targets = child.targets if isinstance(child, ast.Assign) else [child.target]
+            if len(targets) != 1 or not isinstance(targets[0], ast.Name) or targets[0].id.startswith('__'):
+                refuse("Class fields require ordinary single names.", child)
+            if child.value is not None and not _immutable(child.value):
+                refuse("Class field initialization requires immutable literals.", child)
+            if isinstance(child, ast.AnnAssign):
+                annotation(child.annotation)
+            continue
+        refuse("Class initialization permits literal fields and ordinary methods only.", child)
+    if any(isinstance(child, ast.Name) and child.id == 'super' for child in ast.walk(node)):
+        refuse("Super and custom inheritance require a later class contract.", node)
+
+
+def _validate(graph: SymbolGraph, *, linked: bool = False, include_classes: bool = False):
     def refuse(message, node=None):
         suffix = f" (line {node.lineno})" if node is not None else ""
         raise BundleError("SHIM410: " + message + suffix)
@@ -56,6 +112,8 @@ def _validate(graph: SymbolGraph, *, linked: bool = False):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if node.decorator_list or node.type_params:
                 refuse("Decorators and generic definitions require a separate extraction contract.", node)
+        elif isinstance(node, ast.ClassDef) and linked and include_classes:
+            _validate_class(graph, node, refuse)
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             if len(targets) != 1 or not isinstance(targets[0], ast.Name) or not _immutable(node.value):
@@ -71,8 +129,10 @@ def _validate(graph: SymbolGraph, *, linked: bool = False):
                 refuse("Import is outside the supported standard-library extraction profile.", node)
         else:
             refuse("Executable module initialization and classes are unsupported.", node)
+    class_methods = {id(child) for parent in graph.tree.body if include_classes and isinstance(parent, ast.ClassDef)
+                     for child in parent.body if isinstance(child, ast.FunctionDef)}
     for node in ast.walk(graph.tree):
-        if isinstance(node, ast.ClassDef):
+        if isinstance(node, ast.ClassDef) and not (linked and include_classes and node in graph.tree.body):
             refuse("Class definitions require a separate extraction contract.", node)
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             if linked and node not in graph.tree.body:
@@ -92,7 +152,8 @@ def _validate(graph: SymbolGraph, *, linked: bool = False):
         if isinstance(node, ast.Attribute) and node.attr.startswith("__"):
             refuse("Dunder attribute reflection is unsupported.", node)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (node.decorator_list or node.type_params):
+            class_method = id(node) in class_methods
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and ((node.decorator_list and not class_method) or node.type_params):
                 refuse("Nested decorated/generic definitions are unsupported.", node)
             defaults = [*node.args.defaults, *(item for item in node.args.kw_defaults if item is not None)]
             if any(not _immutable(item) for item in defaults):

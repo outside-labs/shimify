@@ -153,3 +153,12 @@ for text_metrics and the hash-pinned packaging 25.0 pilot. Reports separate
 source, notices, complete payload, canonical tar and gzip bytes, with raw isolated
 cold/warm timing and separate tracemalloc/RSS observations. Original/reduced
 behavior must agree; no fixed size, speed or memory improvement is required.
+
+## Whole-class source extraction
+
+CLASS-01 adds the opt-in [whole-class linked profile](docs/class-extraction.md).
+It retains complete plain classes, their methods/global dependencies and approved
+builtin property/static/class method descriptors, with identity/import-order and
+stateful original/reduced comparisons. Custom inheritance/metaclasses, dynamic
+registration, mutable initialization and method elimination remain gated. Default
+function-only profiles keep their prior refusals and manifest contract.
