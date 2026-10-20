@@ -140,3 +140,8 @@ The development [cross-module linker](docs/cross-module-linking.md) preserves
 ordinary import paths and selected callable identity while removing unused source
 bindings. The existing same-module extraction and module-bundle profiles retain
 their original boundaries.
+
+The development [explicit resource profile](docs/explicit-resources.md) adds
+allowlisted UTF-8 package data and source-owned distribution version metadata
+to unchanged-module bundles under a separate schema-2 manifest. Callable
+extraction keeps its existing resource boundary.

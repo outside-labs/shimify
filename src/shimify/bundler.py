@@ -12,6 +12,7 @@ import tempfile
 from shimify import __version__
 from shimify.models import ModuleGraph
 from shimify.provenance import BundleError, collect_provenance
+from shimify.resources import resource_files
 
 _LAUNCHER = '''#!/usr/bin/env python3
 """Run this source bundle: python -I -S run.py [arguments]."""
@@ -87,10 +88,15 @@ def bundle(graph: ModuleGraph, output: str | Path) -> dict:
     add("run.py", _LAUNCHER.format(entrypoint=entry_name).encode("utf-8"))
     for path, content in sorted(provenance.notices.items()):
         add(path, content)
+    resource_records, version_records = [], []
+    if graph.resource_policy is not None:
+        additional, resource_records, version_records = resource_files(graph, provenance)
+        for path, content in sorted(additional.items()):
+            add(path, content)
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2 if graph.resource_policy is not None else 1,
         "shimify_version": __version__,
-        "mode": "modules",
+        "mode": "modules-resources" if graph.resource_policy is not None else "modules",
         "entrypoint": "_sources/" + entry_name,
         "launcher": "run.py",
         "python": {"requires": ">=3.14", "build_version": platform.python_version(), "implementation": sys.implementation.name},
@@ -104,6 +110,10 @@ def bundle(graph: ModuleGraph, output: str | Path) -> dict:
         ],
         "limitations": ["Conservative static imports; arbitrary runtime behavior is not proven.", "License material is preserved; redistribution compliance is not certified."],
     }
+    if graph.resource_policy is not None:
+        manifest['resource_policy'] = graph.resource_policy.to_dict()
+        manifest['resources'] = resource_records
+        manifest['distribution_versions'] = version_records
     add("SHIMIFY-MANIFEST.json", (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8"))
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".shimify-", dir=destination.parent) as temporary:
