@@ -9,6 +9,7 @@ from shimify import __version__
 from shimify.analyzer import analyze
 from shimify.bundler import bundle
 from shimify.extractor import extract
+from shimify.linker import link
 from shimify.provenance import BundleError
 from shimify.runtime import runtime_requirements
 from shimify.symbols import analyze_symbols, parse_target
@@ -35,6 +36,9 @@ def main(argv: list[str] | None = None) -> int:
     extraction = commands.add_parser("extract", help="Extract a supported function and its same-module helpers.")
     extraction.add_argument("target", help="FILE.py:top_level_name")
     extraction.add_argument("--output", type=Path, required=True, help="New directory outside the source root.")
+    linking = commands.add_parser("link", help="Extract a callable across ordinary source imports and re-exports.")
+    linking.add_argument("target", help="FILE.py:top_level_name")
+    linking.add_argument("--output", type=Path, required=True)
     runtime = commands.add_parser("runtime", help="Report static runtime requirements and unestablished closure.")
     runtime.add_argument("script", type=Path)
     runtime.add_argument("--search-path", type=Path, action="append", default=[])
@@ -48,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
     tracing.add_argument("--max-output-bytes", type=int, default=65536)
     args = parser.parse_args(argv)
     try:
+        if args.command == "link":
+            manifest = link(*parse_target(args.target), args.output)
+            print(f"Created {args.output.resolve()} ({manifest['size']['extracted_source_bytes']} source bytes)")
+            return 0
         if args.command == "extract":
             manifest = extract(analyze_symbols(*parse_target(args.target)), args.output)
             print(f"Created {args.output.resolve()} ({manifest['size']['extracted_source_bytes']} source bytes)")

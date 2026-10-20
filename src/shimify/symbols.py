@@ -121,6 +121,11 @@ def analyze_symbols(path: str | Path, symbol: str) -> SymbolGraph:
     if path.suffix != ".py" or not path.is_file() or not symbol.isidentifier():
         raise ValueError("Expected an existing .py file and a top-level symbol name.")
     source = path.read_bytes()
+    return symbols_from_source(path, source, symbol)
+
+
+def symbols_from_source(path: Path, source: bytes, symbol: str | None = None) -> SymbolGraph:
+    """Build bindings from an analyzed byte snapshot without executing or rereading it."""
     encoding, _ = tokenize.detect_encoding(io.BytesIO(source).readline)
     text = source.decode(encoding)
     try:
@@ -128,7 +133,7 @@ def analyze_symbols(path: str | Path, symbol: str) -> SymbolGraph:
         compile(tree, str(path), "exec")
     except SyntaxError as error:
         raise ValueError(f"Invalid Python source: {error}") from error
-    graph = SymbolGraph(path, symbol, source, encoding, text, tree)
+    graph = SymbolGraph(path, symbol or "", source, encoding, text, tree)
     for index, node in enumerate(tree.body):
         if index == 0 and isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
             continue
@@ -140,7 +145,7 @@ def analyze_symbols(path: str | Path, symbol: str) -> SymbolGraph:
                 graph.diagnostics.append(Diagnostic("SHIM402", f"Binding is defined more than once: {name}", path.name, node.lineno))
             graph.bindings[name] = Binding(name, type(node).__name__, node.lineno, node.end_lineno, _references(node))
             graph.nodes[name] = node
-    if symbol not in graph.bindings:
+    if symbol is not None and symbol not in graph.bindings:
         graph.diagnostics.append(Diagnostic("SHIM403", f"Top-level symbol was not found: {symbol}", path.name))
     graph.diagnostics = sorted(set(graph.diagnostics), key=lambda item: (item.line, item.code, item.message))
     return graph

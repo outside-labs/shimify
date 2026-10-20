@@ -39,14 +39,14 @@ def _immutable(node: ast.AST | None) -> bool:
     return immutable(value)
 
 
-def _validate(graph: SymbolGraph):
+def _validate(graph: SymbolGraph, *, linked: bool = False):
     def refuse(message, node=None):
         suffix = f" (line {node.lineno})" if node is not None else ""
         raise BundleError("SHIM410: " + message + suffix)
 
-    if not graph.to_dict()["supported"]:
+    if graph.diagnostics or (not linked and not graph.to_dict()["supported"]):
         refuse("Symbol graph has diagnostics or unresolved globals.")
-    if not isinstance(graph.nodes[graph.symbol], (ast.FunctionDef, ast.AsyncFunctionDef)):
+    if not linked and not isinstance(graph.nodes[graph.symbol], (ast.FunctionDef, ast.AsyncFunctionDef)):
         refuse("The selected symbol must be a plain top-level function.")
     for index, node in enumerate(graph.tree.body):
         if node.col_offset or (index and node.lineno <= graph.tree.body[index - 1].end_lineno):
@@ -62,9 +62,9 @@ def _validate(graph: SymbolGraph):
                 refuse("Only single-name immutable literal constants are supported.", node)
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
             if isinstance(node, ast.ImportFrom):
-                if node.level or any(alias.name == "*" for alias in node.names):
+                if (node.level and not linked) or any(alias.name == "*" for alias in node.names):
                     refuse("Relative and wildcard imports are unsupported.", node)
-                names = [node.module]
+                names = [] if linked else [node.module]
             else:
                 names = [alias.name for alias in node.names]
             if any(name != "__future__" and name.split(".")[0] not in _IMPORTS for name in names):
@@ -75,10 +75,12 @@ def _validate(graph: SymbolGraph):
         if isinstance(node, ast.ClassDef):
             refuse("Class definitions require a separate extraction contract.", node)
         if isinstance(node, (ast.Import, ast.ImportFrom)):
+            if linked and node not in graph.tree.body:
+                refuse("Linked extraction requires unconditional top-level imports.", node)
             if isinstance(node, ast.ImportFrom):
-                if node.level or any(alias.name == "*" for alias in node.names):
+                if (node.level and not linked) or any(alias.name == "*" for alias in node.names):
                     refuse("Relative and wildcard imports are unsupported.", node)
-                names = [node.module]
+                names = [] if linked else [node.module]
             else:
                 names = [alias.name for alias in node.names]
             if any(name != "__future__" and name.split(".")[0] not in _IMPORTS for name in names):
