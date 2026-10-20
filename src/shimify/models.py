@@ -46,13 +46,14 @@ class ModuleGraph:
     modules: dict[str, Module] = field(default_factory=dict)
     edges: list[ImportEdge] = field(default_factory=list)
     diagnostics: list[Diagnostic] = field(default_factory=list)
+    resource_policy: object | None = field(default=None, repr=False)
 
     @property
     def supported(self) -> bool:
         return not self.diagnostics
 
     def to_dict(self) -> dict:
-        return {
+        report = {
             "schema_version": 1,
             "entrypoint": str(self.entrypoint),
             "search_paths": [str(path) for path in self.search_paths],
@@ -75,3 +76,6 @@ class ModuleGraph:
                 for item in sorted(set(self.diagnostics), key=lambda d: (d.module, d.line, d.code, d.message))
             ],
         }
+        if self.resource_policy is not None:
+            report['resource_policy'] = self.resource_policy.to_dict()
+        return report

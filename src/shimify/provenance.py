@@ -1,6 +1,6 @@
 """Read installed file records and preserve attribution without loading code."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.metadata import PathDistribution
 from pathlib import Path, PurePosixPath
 import re
@@ -17,6 +17,7 @@ class Provenance:
     distributions: list[dict]
     owners: dict[Path, str]
     notices: dict[str, bytes]
+    recorded_files: dict[Path, str] = field(default_factory=dict)
 
 
 def _notice_name(name: str) -> bool:
@@ -77,6 +78,7 @@ def collect_provenance(graph: ModuleGraph) -> Provenance:
         used.setdefault(info, (distribution, records, []))[2].append(module.name)
     notices: dict[str, bytes] = {}
     distributions = []
+    recorded_files = {}
     identities = set()
     for info, (distribution, records, modules) in sorted(used.items()):
         name, version = distribution.metadata["Name"], distribution.metadata["Version"]
@@ -84,6 +86,10 @@ def collect_provenance(graph: ModuleGraph) -> Provenance:
         if identity in identities:
             raise BundleError(f"SHIM303: Multiple installations use the same distribution identity: {identity}")
         identities.add(identity)
+        for path in records.values():
+            if path in recorded_files and recorded_files[path] != identity:
+                raise BundleError('SHIM303: Multiple included distributions claim a file.')
+            recorded_files[path] = identity
         root = info.parent.resolve()
         selected = {
             path for relative, path in records.items()
@@ -142,4 +148,4 @@ def collect_provenance(graph: ModuleGraph) -> Provenance:
             for path in sorted(directory.iterdir()):
                 if path.is_file() and _notice_name(path.name) and path.resolve().is_relative_to(root):
                     notices[f"LICENSES/local-{index}/{path.relative_to(root).as_posix()}"] = path.read_bytes()
-    return Provenance(sorted(distributions, key=lambda d: d["id"]), owners, notices)
+    return Provenance(sorted(distributions, key=lambda d: d["id"]), owners, notices, recorded_files)
