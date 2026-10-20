@@ -34,8 +34,8 @@ Related plans:
 - [Application assembly](https://github.com/outside-labs/pocket-python/blob/main/IMPLEMENTATION_PLAN.md)
 - [Independent interpreter](https://github.com/outside-labs/pocket-python/blob/main/IMPLEMENTATION_PLAN_INTERPRETER.md)
 
-The compiler repository remains private. Cross-project links do not change its
-visibility or authorize copying its source into public artifacts.
+The compiler repository became public on 2026-10-20. Project visibility remains
+separate; application artifacts still include only explicitly selected files.
 
 ## Delivered behavior and next result
 
