@@ -48,3 +48,7 @@ Undefined cycles, dynamic exports, initialization effects, source changes and
 unsafe/failed publication are refusal tests. Source bytes are snapshotted,
 rechecked before exclusive publication, and notices are preserved without a
 recursive source-tree copy. Resources remain the explicit VND-01 task.
+
+The explicit [linked-classes/1 profile](class-extraction.md), selected with
+`link --classes`, extends this contract with whole plain classes. The default
+function-only profile retains its existing refusal boundary.

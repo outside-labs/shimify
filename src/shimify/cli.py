@@ -46,6 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     linking = commands.add_parser("link", help="Extract a callable across ordinary source imports and re-exports.")
     linking.add_argument("target", help="FILE.py:top_level_name")
     linking.add_argument("--output", type=Path, required=True)
+    linking.add_argument('--classes', action='store_true', help='Retain whole plain-class units and adopted builtin method descriptors.')
     runtime = commands.add_parser("runtime", help="Report static runtime requirements and unestablished closure.")
     runtime.add_argument("script", type=Path)
     runtime.add_argument("--search-path", type=Path, action="append", default=[])
@@ -60,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "link":
-            manifest = link(*parse_target(args.target), args.output)
+            manifest = link(*parse_target(args.target), args.output, include_classes=args.classes)
             print(f"Created {args.output.resolve()} ({manifest['size']['extracted_source_bytes']} source bytes)")
             return 0
         if args.command == "extract":

@@ -31,8 +31,10 @@ def _identity(path):
     return path, ".".join(parts), root
 
 
-def link(path: str | Path, symbol: str, output: str | Path) -> dict:
+def link(path: str | Path, symbol: str, output: str | Path, *, include_classes: bool = False) -> dict:
     """Extract an explicit callable closure without importing any target module."""
+    if type(include_classes) is not bool:
+        raise TypeError('include_classes must be bool')
     path, entry_name, root = _identity(path)
     if not symbol.isidentifier():
         raise ValueError("Expected a top-level symbol name.")
@@ -47,7 +49,7 @@ def link(path: str | Path, symbol: str, output: str | Path) -> dict:
         if name.split(".")[0] in sys.stdlib_module_names:
             raise BundleError("SHIM420: Local standard-library shadowing is unsupported.")
         table = symbols_from_source(module.path, module.source)
-        _validate(table, linked=True)
+        _validate(table, linked=True, include_classes=include_classes)
         tables[name] = table
 
     def imported(module_name, node, alias):
@@ -114,7 +116,8 @@ def link(path: str | Path, symbol: str, output: str | Path) -> dict:
                     pending.append(target)
         for reference in table.bindings[binding].references:
             if reference in table.bindings:
-                edges.add((f"{name}:{binding}", f"{name}:{reference}", "lexical global reference"))
+                reason = 'whole class global reference' if isinstance(node, ast.ClassDef) else 'lexical global reference'
+                edges.add((f"{name}:{binding}", f"{name}:{reference}", reason))
                 pending.append((name, reference))
             elif reference not in vars(builtins):
                 raise BundleError(f"SHIM420: Unresolved lexical binding: {name}:{reference}")
@@ -123,24 +126,37 @@ def link(path: str | Path, symbol: str, output: str | Path) -> dict:
     while current not in seen:
         seen.add(current)
         node = tables[current[0]].nodes.get(current[1])
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) or (include_classes and isinstance(node, ast.ClassDef)):
             break
         if isinstance(node, ast.ImportFrom):
             alias = next(alias for alias in node.names if (alias.asname or alias.name) == current[1])
             current = imported(current[0], node, alias)
             if current is not None:
                 continue
-        raise BundleError("SHIM420: Selected export must resolve to a source function.")
+        raise BundleError("SHIM420: Selected export must resolve to an adopted source function/class." if include_classes else "SHIM420: Selected export must resolve to a source function.")
     else:
         raise BundleError("SHIM420: Re-export cycle has no source function.")
 
-    # Imported source symbols cannot become a dynamic module/object dispatch API.
+    def class_export(target):
+        seen = set()
+        while target and target not in seen:
+            seen.add(target)
+            node = tables[target[0]].nodes[target[1]]
+            if isinstance(node, ast.ClassDef):
+                return True
+            if not isinstance(node, ast.ImportFrom):
+                return False
+            alias = next(alias for alias in node.names if (alias.asname or alias.name) == target[1])
+            target = imported(target[0], node, alias)
+        return False
+
+    # Imported source classes permit attributes only when their whole unit is kept.
     for name, table in tables.items():
-        local_imports = {alias.asname or alias.name for node in table.tree.body if isinstance(node, ast.ImportFrom)
+        local_imports = {alias.asname or alias.name: imported(name, node, alias) for node in table.tree.body if isinstance(node, ast.ImportFrom)
                          for alias in node.names if imported(name, node, alias)}
         for binding in retained[name]:
             for node in ast.walk(table.nodes[binding]):
-                if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in local_imports:
+                if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in local_imports and not (include_classes and class_export(local_imports[node.value.id])):
                     raise BundleError("SHIM420: Attribute dispatch on an imported source binding is unsupported.")
 
     provenance = collect_provenance(graph)
@@ -178,6 +194,13 @@ def link(path: str | Path, symbol: str, output: str | Path) -> dict:
                 "limitations": ["Selected callable API; omitted APIs, reflection, original source positions and filesystem paths are excluded.",
                                 "All static imports remain initialization roots; executable initialization and dynamic exports are rejected.",
                                 "Source reduction does not establish interpreter size or general package compatibility."]}
+    if include_classes:
+        manifest['limitations'][1] = 'All static imports remain initialization roots; unadopted initialization and dynamic exports are rejected.'
+        manifest['extraction_profile'] = 'linked-classes/1'
+        manifest['class_units'] = [{'module': name, 'symbol': binding,
+                                    'methods': [node.name for node in table.nodes[binding].body if isinstance(node, ast.FunctionDef)]}
+                                   for name, table in sorted(tables.items()) for binding in sorted(retained[name]) if isinstance(table.nodes[binding], ast.ClassDef)]
+        manifest['limitations'].append('Whole plain-class units and adopted builtin descriptors; no method elimination, custom inheritance or registration.')
     files["SHIMIFY-LINK.json"] = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
     write_directory(output, files, source_roots=tuple({module.root for module in sources.values()}))
     return manifest

@@ -107,3 +107,7 @@ the complete suite and isolated wheel smoke test on Linux, macOS, and Windows.
 Development [source measurements](docs/source-measurements.md) compare the
 text_metrics callable and pinned packaging pilot with complete artifact overhead,
 cold/warm execution and separately measured memory.
+
+The opt-in [class extraction profile](docs/class-extraction.md) keeps whole plain
+class units and approved builtin method descriptors. Custom inheritance and
+method elimination remain separately gated.
