@@ -29,6 +29,8 @@ _WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 1
 
 def bundle(graph: ModuleGraph, output: str | Path) -> dict:
     """Write snapshots of analyzed sources; never execute the target program."""
+    if "__main__" not in graph.modules:
+        raise BundleError("SHIM300: Module bundles require a script graph.")
     requested = Path(output).absolute()
     if requested.exists() or requested.is_symlink():
         raise BundleError(f"SHIM301: Output already exists: {requested}")

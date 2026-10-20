@@ -135,3 +135,8 @@ Keep releases/tags immutable. New runtime dependencies, services, engine
 repository/package identity, release uploads and deployment retain their explicit
 scope/decision requirements. This planning update changes no runtime dependencies
 and publishes no package.
+
+The development [cross-module linker](docs/cross-module-linking.md) preserves
+ordinary import paths and selected callable identity while removing unused source
+bindings. The existing same-module extraction and module-bundle profiles retain
+their original boundaries.
