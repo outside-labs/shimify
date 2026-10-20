@@ -37,6 +37,10 @@ class TracingTests(unittest.TestCase):
             trace(graph, allow_execution=True)
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main(['trace', str(self.source)]), 1)
+        (self.root / 'json.py').write_text('value = 7\n')
+        graph = self.graph('import json')
+        with self.assertRaisesRegex(BundleError, 'shadowing'):
+            trace(graph, allow_execution=True)
 
     def test_known_fixture_observations_are_deterministic_and_never_removal_authority(self):
         fixture = Path(__file__).parent / 'fixtures/text_metrics/app.py'
@@ -95,3 +99,8 @@ class TracingTests(unittest.TestCase):
         for options in [dict(timeout=0), dict(timeout=float('nan')), dict(max_output_bytes=0), dict(arguments=('bad\0value',))]:
             with self.subTest(options=options), self.assertRaises(ValueError):
                 trace(analyze(self.source), allow_execution=True, **options)
+
+    def test_background_threads_do_not_claim_complete_observation(self):
+        report = trace(self.graph('import threading,time\nthreading.Thread(target=lambda: time.sleep(0.2)).start()'), allow_execution=True)
+        self.assertTrue(report['runtime']['background_threads'])
+        self.assertFalse(report['evidence_complete'])

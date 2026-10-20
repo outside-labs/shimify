@@ -40,6 +40,8 @@ limits and source integrity. evidence_complete means the bounded observer
 finished with unchanged sources and no truncation; it never means complete
 dependency or runtime closure. A failed application can have complete observer
 records. CLI exits nonzero for failure or incomplete observations.
+Live background Python threads at observer completion make the report incomplete;
+this initial observer targets the selected main-script workload.
 
 Unobserved dependencies remain unknown. removal_authorized is always false:
 this command cannot approve deleting source, stdlib, native libraries or VM

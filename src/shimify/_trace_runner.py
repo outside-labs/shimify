@@ -52,6 +52,7 @@ def main():
         loaded = [name for name in loaded if len(name) <= 256][:4096]
     report = {'observer': 'shimify-runtime-evidence/1', 'status': status, 'error_type': error_type, 'application_exit_code': application_exit_code,
               'python': identity,
+              'background_threads': len(sys._current_frames()) > 1,
               'import_requests': [{'name': name, 'level': level, 'fromlist': list(names)} for name, level, names in sorted(requests)],
               'new_module_names': loaded, 'observation_limit_reached': overflow}
     Path(report_path).write_text(json.dumps(report, ensure_ascii=True, sort_keys=True) + '\n', encoding='utf-8')

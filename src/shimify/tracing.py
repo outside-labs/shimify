@@ -58,6 +58,7 @@ def _valid_runtime(value):
     return (isinstance(value, dict) and value.get('observer') == 'shimify-runtime-evidence/1'
             and isinstance(value.get('status'), str) and value.get('status') in {'completed', 'failed'} and isinstance(value.get('python'), dict)
             and isinstance(value.get('import_requests'), list) and isinstance(value.get('new_module_names'), list)
+            and type(value.get('background_threads')) is bool
             and type(value.get('observation_limit_reached')) is bool)
 
 
@@ -133,7 +134,7 @@ def trace(graph: ModuleGraph, *, allow_execution: bool = False, arguments: tuple
                 'sources': [{'module': module.name, 'sha256': module.sha256} for module in sorted(sources, key=lambda item: item.name)],
                 'static_supported': graph.supported, 'static_diagnostics': [asdict(item) for item in graph.diagnostics],
                 'limits': {'timeout_seconds': timeout, 'output_bytes_per_stream': max_output_bytes, 'memory_limit': None},
-                'evidence_complete': runtime is not None and not stopped and unchanged and not runtime['observation_limit_reached'],
+                'evidence_complete': runtime is not None and not stopped and unchanged and not runtime['observation_limit_reached'] and not runtime['background_threads'],
                 'removal_authorized': False,
                 'limitations': ['Observed imports are workload evidence; unobserved dependencies remain unknown.',
                                 'Isolated Python flags and a separate process are not a security sandbox.',
