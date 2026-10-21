@@ -1,7 +1,7 @@
 # Whole-class linked extraction
 
 CLASS-01 adopts the opt-in `linked-classes/1` profile for `link --classes`.
-It is available in the development checkout; published 0.2.1 predates this profile.
+It is included in Shimify 0.3.0; published 0.2.1 predates this profile.
 The existing function extraction and default linked profile keep rejecting
 classes. This profile copies ordinary source classes as complete units; it does
 not eliminate methods or change the runtime's class model.

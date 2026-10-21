@@ -4,21 +4,21 @@ Shimify is a source-level Python dependency reducer. It aims to explain what an
 application imports and produce an auditable source directory containing the
 implementation needed by its supported import graph.
 
-Version 0.2 adds lexical symbol reports, conservative same-module callable
-extraction, and runtime requirements reports. The original module bundler
-preserves ordinary Python package layouts and source bytes. Cross-module
-symbol rewriting, native slicing and automatic resources remain later work.
+Version 0.3 adds bounded cross-module callable and whole-class extraction,
+explicit package text resources and version queries, and opt-in runtime import
+evidence. Lexical reports, same-module extraction and unchanged-module bundles
+remain available. Native slicing and automatic resource discovery remain later work.
 
 Requires Python 3.14 or newer. There are no runtime dependencies.
 
-The `0.2.1` release is experimental and uses the MIT license:
+The `0.3.0` release is experimental and uses the MIT license:
 
 ```sh
-python -m pip install shimify==0.2.1
+python -m pip install shimify==0.3.0
 shimify --help
 ```
 
-See [release notes](docs/release-0.2.1.md) for supported behavior and limitations.
+See [release notes](docs/release-0.3.0.md) for supported behavior and limitations.
 For development and the acceptance pilot, use a checkout:
 
 ```sh

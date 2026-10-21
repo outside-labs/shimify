@@ -1,6 +1,6 @@
 # Opt-in runtime evidence
 
-The development checkout adds
+Version 0.3.0 adds
 `shimify trace app.py --allow-execution --argument 'example input'`.
 Without the explicit flag, analysis remains read-only and no process starts.
 The library equivalent is `trace(analyze(path), allow_execution=True, ...)`.

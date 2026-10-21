@@ -1,8 +1,8 @@
 # Bounded cross-module callable extraction
 
-The development checkout adds `shimify link FILE.py:symbol --output NEW_DIR`.
+Version 0.3.0 adds `shimify link FILE.py:symbol --output NEW_DIR`.
 It is separate from unchanged `modules` bundles and the existing conservative
-same-module `extract` command. The published 0.2.1 package predates this command.
+same-module `extract` command. This command is included in 0.3.0; the published 0.2.1 package predates it.
 
 The selected export must resolve to a plain source function. Link follows named
 from-imports, aliases, relative imports, package parent initializers and
