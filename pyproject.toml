@@ -1,6 +1,6 @@
 [project]
 name = "shimify"
-version = "0.2.1"
+version = "0.3.0"
 description = "Auditable Python dependency analysis and portable source bundles"
 readme = "README.md"
 authors = [

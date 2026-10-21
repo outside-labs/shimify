@@ -3,12 +3,12 @@
 VND-01 adopts an opt-in module-bundle profile. Original modules stay unchanged;
 same-module and linked callable extraction retain their resource refusals.
 
-The development command is `shimify resources app.py --resource text_metrics:stopwords.txt --output NEW_DIR`.
+The command is `shimify resources app.py --resource text_metrics:stopwords.txt --output NEW_DIR`.
 Add `--distribution-version synthetic-text-metrics` only when the application
 queries that source-owning distribution's version. Library callers pass
 `ResourcePolicy((TextResource('text_metrics', 'stopwords.txt'),), versions=())`
 to `analyze(..., resource_policy=policy)` and then `bundle(graph, output)`.
-The published 0.2.1 package predates this profile.
+This profile is included in 0.3.0; the published 0.2.1 package predates it.
 
 Each resource declaration names an ordinary source package and one normalized
 relative .txt path. Only that file is copied. The first loader form is an

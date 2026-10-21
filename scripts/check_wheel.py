@@ -51,3 +51,13 @@ with tempfile.TemporaryDirectory() as temporary:
     assert manifest["files"][0]["sha256"] == hashlib.sha256((output / "extracted.py").read_bytes()).hexdigest()
     result = subprocess.run([sys.executable, "-I", "-S", "-c", "import sys; sys.path.insert(0,sys.argv[1]); from extracted import selected; print(selected(81))", str(output)], check=True, capture_output=True, text=True, cwd=root)
     assert result.stdout.strip() == "9.0"
+
+    subprocess.run(["uv", "run", "--python", sys.executable, "--isolated", "--no-project",
+        "--with", str(wheels[0].resolve()), "python", "-I", "-c",
+        "import sys,unittest,shimify;from importlib.metadata import version;"
+        "assert 'site-packages' in shimify.__file__;"
+        "assert shimify.__version__ == version('shimify') == sys.argv[2];"
+        "sys.path.insert(0,sys.argv[1]);"
+        "suite=unittest.defaultTestLoader.discover(sys.argv[1]+'/tests');"
+        "result=unittest.TextTestRunner(verbosity=2).run(suite);"
+        "sys.exit(not result.wasSuccessful())", str(Path.cwd()), version], check=True, cwd=root)

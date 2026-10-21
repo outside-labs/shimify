@@ -162,3 +162,12 @@ builtin property/static/class method descriptors, with identity/import-order and
 stateful original/reduced comparisons. Custom inheritance/metaclasses, dynamic
 registration, mutable initialization and method elimination remain gated. Default
 function-only profiles keep their prior refusals and manifest contract.
+
+## 0.3.0 publication plan
+
+[REL-04](https://github.com/outside-labs/shimify/issues/42) publishes the merged
+LINK-01, CLASS-01, VND-01, TRACE-01 and PERF-01 behavior as experimental 0.3.0.
+The [release contract](docs/release-0.3.0.md) fixes the included profiles and
+limits. Passing final-main platform CI, isolated wheel behavior, strict artifact
+allowlists, PyPI/workflow digest comparison and fresh PyPI installation are gates.
+ART-01 stays a separate decision; no upstream package replacement is implied.
